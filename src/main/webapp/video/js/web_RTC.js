@@ -173,7 +173,7 @@ function getUserMedia(code) {
 
     if (navigator.mediaDevices.getUserMedia === undefined) {
         navigator.mediaDevices.getUserMedia = promisifiedOldGUM;
-        alert("低版本兼容")
+        //alert("低版本兼容")
     }
 
 
@@ -223,7 +223,7 @@ function getUserMedia(code) {
             //处理媒体流创建失败错误
             console.log('getUserMedia error: ' + err);
             if (ishost) {
-                alert("亲,媒体流获取失败！");
+                alert("亲,媒体流获取失败！请检查是否在https环境下或尝试更换chrome浏览器");
                 window.location.reload(true);//刷新页面
             } else {
                 var stream_null = $("<canvas></canvas>")[0].captureStream(25);
