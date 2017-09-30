@@ -19,14 +19,15 @@ function createPeerConnection() {//创建重置rtc连接
     };
 
     // 创建PeerConnection实例 (参数为null则没有iceserver，即使没有stunserver和turnserver，仍可在局域网下通讯)
-    pc = new PeerConnection(iceServer);
+    pc = new RTCPeerConnection(iceServer);
 
     // 发送ICE候选到其他客户端
     pc.onicecandidate = function (event) {
         console.log("发送ICE候选");
         if (event.candidate !== null) {
-            websocket_rtc.send(JSON.stringify({
-                "style": "ice_candidate",
+            websocket.send(JSON.stringify({
+                "group": "rtc",
+                "type": "ice_candidate",
                 "data": {
                     "candidate": event.candidate
                 },
@@ -41,7 +42,7 @@ function createPeerConnection() {//创建重置rtc连接
         remoteVideoUrl = getObjectURL(event.stream);
         remoteStream = event.stream;
         if (!isprovider) {
-            $("#live_video")[0].src = remoteVideoUrl;
+            $("#live_video")[0].srcObject = remoteStream;
         }
         // waitForRemoteVideo();//等待视频接通
     };
@@ -70,8 +71,9 @@ function createPeerConnection() {//创建重置rtc连接
 var sendOfferFn = function (desc) {
     console.log("发送offer信令");
     pc.setLocalDescription(desc);
-    websocket_rtc.send(JSON.stringify({
-        "style": "offer",
+    websocket.send(JSON.stringify({
+        "group": "rtc",
+        "type": "offer",
         "data": {
             "sdp": desc
         }
@@ -80,15 +82,15 @@ var sendOfferFn = function (desc) {
 var sendAnswerFn = function (desc) {
     console.log("发送回复answer信令");
     pc.setLocalDescription(desc);
-    websocket_rtc.send(JSON.stringify({
-        "style": "answer",
+    websocket.send(JSON.stringify({
+        "group": "rtc",
+        "type": "answer",
         "data": {
             "sdp": desc
         },
         "session_id": session_id
     }));
 };
-
 
 // 等待远程视频
 function waitForRemoteVideo() {
@@ -101,12 +103,11 @@ function waitForRemoteVideo() {
 
 }
 
-
 //处理到来的信令
 function processSignalingMessage(message) {
     console.log('onmessage:', message);
 
-    if (message.style === "offer") {
+    if (message.type === "offer") {
 
         //answer端收到offer信令后才会创建peerConnection
         createPeerConnection();
@@ -121,20 +122,20 @@ function processSignalingMessage(message) {
             console.log('Failure callback: ' + error);
         });
     }
-    else if (message.style === "answer") {
+    else if (message.type === "answer") {
         if (message.data.sdp != null) {
             pc.setRemoteDescription(new RTCSessionDescription(message.data.sdp));
         }
     }
-    else if (message.style === "ice_candidate" && islived) {
+    else if (message.type === "ice_candidate" && islived) {
         //如果是一个ICE的候选，则将其加入到PeerConnection中，否则设定对方的session描述为传递过来的描述
         if (message.data.candidate != null) {
             pc.addIceCandidate(new RTCIceCandidate(message.data.candidate));
         }
     }
-    else if (message.style === "bye" && islived) {
+    else if (message.type === "bye" && islived) {
         // alert("1")
-        // if (!ishost) {//不是主播还是不是isprovider？？？？？？
+        // if (!isliver) {//不是主播还是不是isprovider？？？？？？
         //     remoteClose();
         // }
         // else {
@@ -144,7 +145,6 @@ function processSignalingMessage(message) {
     }
 
 };
-
 
 //获取视频流低版本兼容
 var promisifiedOldGUM = function (constraints) {
@@ -161,7 +161,6 @@ var promisifiedOldGUM = function (constraints) {
         getUserMedia.call(navigator, constraints, resolve, reject);
     });
 };
-
 
 // 获取用户的媒体(获取本地音频和视频流)
 function getUserMedia(code) {
@@ -197,54 +196,44 @@ function getUserMedia(code) {
 
     };
 
-    navigator.mediaDevices.getUserMedia(constraints)
-        .then(function (stream) {
-            //绑定本地媒体流到video标签用于输出
-            var local_stream_clone = stream.clone();
-            local_stream_clone.getAudioTracks()[0].enabled = false;
-            local_stream_clone.getAudioTracks()[0].muted = true;
-            console.log("静音成功");
-            localVideoUrl = getObjectURL(local_stream_clone);
+    navigator.mediaDevices.getUserMedia(constraints).then(function (stream) {
+        //绑定本地媒体流到video标签用于输出
+        var local_stream_clone = stream.clone();
+        local_stream_clone.getAudioTracks()[0].enabled = false;
+        local_stream_clone.getAudioTracks()[0].muted = true;
+        console.log("静音成功");
+        localVideoUrl = getObjectURL(local_stream_clone);
+        if (isprovider) {
+            localStream = stream;
+        }
+        else {
+            localStream = local_stream_clone;
+        }
 
-
-            if (isprovider) {
-
-                localStream = stream;
-                // remoteStream=local_stream_clone;
-
-            }
-            else {
-                localStream = local_stream_clone;
-            }
-
+        requst_live_src(code);
+    }).catch(function (err) {
+        //处理媒体流创建失败错误
+        console.log('getUserMedia error: ' + err);
+        if (isliver) {
+            alert("亲,媒体流获取失败！请检查是否在https环境下或尝试更换chrome浏览器");
+            window.location.reload(true);//刷新页面
+        } else {
+            var stream_null = $("<canvas></canvas>")[0].captureStream(25);
+            localStream = stream_null;
+            console.log("视频流已经被null填充");
             requst_live_src(code);
-        })
-        .catch(function (err) {
-            //处理媒体流创建失败错误
-            console.log('getUserMedia error: ' + err);
-            if (ishost) {
-                alert("亲,媒体流获取失败！请检查是否在https环境下或尝试更换chrome浏览器");
-                window.location.reload(true);//刷新页面
-            } else {
-                var stream_null = $("<canvas></canvas>")[0].captureStream(25);
-                localStream = stream_null;
-                console.log("视频流已经被null填充");
-                requst_live_src(code);
-            }
-        });
+        }
+    });
 }
-
 
 //请求直播资源
 function requst_live_src(code) {
     // if(code===1){//启动直播
     //     startlive();
     // }
-    if (ishost) {//主播
-        $("#live_video")[0].src = localVideoUrl;//显示主播视频
-        if (!islived) {
-            startlive();
-        }
+    if (isliver && !islived) {//主播
+        $("#live_video")[0].srcObject = localStream;//显示主播视频
+        startlive();
     }
     else {
 
@@ -254,7 +243,13 @@ function requst_live_src(code) {
             //创建rtc连接对象
             createPeerConnection();
             //向PeerConnection中加入需要发送的流
+            var stream_null = $("<canvas></canvas>")[0].captureStream(25);
+            localStream = stream_null;
+            console.log("视频流已经被null填充");
             pc.addStream(localStream);
+            // pc.addTransceiver('audio');
+            // pc.addTransceiver('video');
+
             //创建并发送请求信令
             pc.createOffer(sendOfferFn, function (error) {
                 console.log('Failure callback: ' + error);
@@ -271,9 +266,10 @@ function requst_live_src(code) {
 //启动直播
 function startlive() {
 
-    if (ishost && !islived) {
-        websocket_rtc.send(JSON.stringify({
-            "style": "ishost_start",
+    if (isliver && !islived) {
+        websocket.send(JSON.stringify({
+            "group": "rtc",
+            "type": "start_live",
             "data": {}
         }));
 
@@ -283,7 +279,7 @@ function startlive() {
         islived = true;//直播正在进行
 
     } else {
-        alert("不能开启直播 ishost:" + ishost + "---islived" + islived);
+        alert("不能开启直播 isliver:" + isliver + "---islived" + islived);
     }
 
 }
