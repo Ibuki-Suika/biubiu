@@ -5,21 +5,21 @@
 function createPeerConnection() {//创建重置rtc连接
 
     // stun和turn服务器
-    var iceServer = {
-        "iceServers": [
-            {
-                "url": "stun:stun.l.google.com:19302"
-            },
-            {
-                "url": "turn:numb.viagenie.ca",
-                "username": "zc1217zc@126.com",
-                "credential": "fhqbukn"
-            }
-        ]
+    const configuration = {
+        iceServers: [{
+            urls: [
+                "stun:stun.l.google.com:19302",
+            ]
+        }, {
+            urls: "turn:numb.viagenie.ca",
+            username: "zc1217zc@126.com",
+            credential: "fhqbukn"
+        }]
     };
 
+
     // 创建PeerConnection实例 (参数为null则没有iceserver，即使没有stunserver和turnserver，仍可在局域网下通讯)
-    pc = new RTCPeerConnection(iceServer);
+    pc = new RTCPeerConnection(configuration);
 
     // 发送ICE候选到其他客户端
     pc.onicecandidate = function (event) {
@@ -37,71 +37,69 @@ function createPeerConnection() {//创建重置rtc连接
     };
 
     // 远程视频添加
-    pc.onaddstream = function onRemoteStreamAdded(event) {
+    pc.ontrack = function onRemoteStreamAdded(event) {
         console.log("远程视频添加");
-        remoteVideoUrl = getObjectURL(event.stream);
-        remoteStream = event.stream;
+        remoteStream = event.streams[0];
         if (!isprovider) {
             $("#live_video")[0].srcObject = remoteStream;
         }
-        // waitForRemoteVideo();//等待视频接通
     };
 
-    // 连接打开
-    pc.onopen = function onSessionOpened(message) {
-        console.log("连接打开");
-    }
-
-    // 开始连接
-    pc.onconnecting = function onSessionConnecting(message) {
-        console.log("开始连接");
-    }
-
-    // 远程视频移除
-    pc.onremovestream = function onRemoteStreamRemoved(event) {
-        console.log("远程视频移除");
-    }
-
+    pc.oniceconnectionstatechange = function (event) {
+        if (pc.iceConnectionState === "failed" ||
+            pc.iceConnectionState === "disconnected" ||
+            pc.iceConnectionState === "closed") {
+            console.error(event)
+            alert("连接中断请刷新")
+        }
+    };
     //将rtc连接对象加入数组中
     pc_opened_array.push(pc);
 
 }
 
 // 发送offer和answer的函数，发送本地session描述
-var sendOfferFn = function (desc) {
+var sendOfferFn = function (offer) {
     console.log("发送offer信令");
-    pc.setLocalDescription(desc);
-    websocket.send(JSON.stringify({
-        "group": "rtc",
-        "type": "offer",
-        "data": {
-            "sdp": desc
-        }
-    }));
+    pc.setLocalDescription(new RTCSessionDescription(offer), () => {
+        websocket.send(JSON.stringify({
+            "group": "rtc",
+            "type": "offer",
+            "data": {
+                "sdp": offer
+            }
+        }));
+    }, error => {
+        console.error("sendOffer" + error)
+    });
 };
-var sendAnswerFn = function (desc) {
+var sendAnswerFn = function (answer) {
     console.log("发送回复answer信令");
-    pc.setLocalDescription(desc);
-    websocket.send(JSON.stringify({
-        "group": "rtc",
-        "type": "answer",
-        "data": {
-            "sdp": desc
-        },
-        "session_id": session_id
-    }));
+    pc.setLocalDescription(new RTCSessionDescription(answer), () => {
+        websocket.send(JSON.stringify({
+            "group": "rtc",
+            "type": "answer",
+            "data": {
+                "sdp": answer
+            },
+            "session_id": session_id
+        }));
+    }, error => {
+        console.error("sendAnswer" + error)
+    });
+
 };
 
 // 等待远程视频
-function waitForRemoteVideo() {
-    if (pc.iceConnectionState == "connected") {// 判断rtc连接状态
-        console.log("视频已经接通");
-    } else {
-        console.log("pc当前状态---" + pc.iceConnectionState);
-        setTimeout(waitForRemoteVideo, 100);
-    }
-
-}
+// function waitForRemoteVideo() {
+//     if (pc.iceConnectionState == "connected") {// 判断rtc连接状态
+//         console.log("视频已经接通");
+//     } else {
+//         console.log("pc当前状态---" + pc.iceConnectionState);
+//         setTimeout(waitForRemoteVideo, 100);
+//     }
+//
+// }
 
 //处理到来的信令
 function processSignalingMessage(message) {
@@ -111,7 +109,8 @@ function processSignalingMessage(message) {
 
         //answer端收到offer信令后才会创建peerConnection
         createPeerConnection();
-        pc.addStream(localStream);
+        pc.addTrack(localStream.getVideoTracks()[0], localStream);
+        pc.addTrack(localStream.getAudioTracks()[0], localStream);
 
 
         if (message.data.sdp != null) {
@@ -147,34 +146,33 @@ function processSignalingMessage(message) {
 };
 
 //获取视频流低版本兼容
-var promisifiedOldGUM = function (constraints) {
-
-    // First get ahold of getUserMedia, if present
-    var getUserMedia = (navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia)
-
-
-    if (!getUserMedia) {
-        return Promise.reject(new Error('getUserMedia is not implemented in this browser'));
-    }
-
-    return new Promise(function (resolve, reject) {
-        getUserMedia.call(navigator, constraints, resolve, reject);
-    });
-};
+// var promisifiedOldGUM = function (constraints) {
+//
+//     // First get ahold of getUserMedia, if present
+//     var getUserMedia = (navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia)
+//
+//
+//     if (!getUserMedia) {
+//         return Promise.reject(new Error('getUserMedia is not implemented in this browser'));
+//     }
+//
+//     return new Promise(function (resolve, reject) {
+//         getUserMedia.call(navigator, constraints, resolve, reject);
+//     });
+// };
+//
+// if (navigator.mediaDevices === undefined) {
+//     navigator.mediaDevices = {};
+// }
+//
+// if (navigator.mediaDevices.getUserMedia === undefined) {
+//     navigator.mediaDevices.getUserMedia = promisifiedOldGUM;
+//     //alert("低版本兼容")
+// }
 
 // 获取用户的媒体(获取本地音频和视频流)
-function getUserMedia(code) {
+function getUserMedia() {
     console.log("获取用户媒体");
-
-    if (navigator.mediaDevices === undefined) {
-        navigator.mediaDevices = {};
-    }
-
-    if (navigator.mediaDevices.getUserMedia === undefined) {
-        navigator.mediaDevices.getUserMedia = promisifiedOldGUM;
-        //alert("低版本兼容")
-    }
-
 
     var constraints = {
         audio: {
@@ -193,74 +191,56 @@ function getUserMedia(code) {
                 maxAspectRatio: 1.777777778
             }
         }
-
     };
 
     navigator.mediaDevices.getUserMedia(constraints).then(function (stream) {
         //绑定本地媒体流到video标签用于输出
+        localStream = stream;
         var local_stream_clone = stream.clone();
         local_stream_clone.getAudioTracks()[0].enabled = false;
-        local_stream_clone.getAudioTracks()[0].muted = true;
+        // local_stream_clone.getAudioTracks()[0].muted = true;
         console.log("静音成功");
-        localVideoUrl = getObjectURL(local_stream_clone);
-        if (isprovider) {
-            localStream = stream;
-        }
-        else {
-            localStream = local_stream_clone;
-        }
-
-        requst_live_src(code);
+        $("#live_video")[0].srcObject = local_stream_clone;//显示主播视频
+        startlive();//发送启动直播信息
     }).catch(function (err) {
         //处理媒体流创建失败错误
-        console.log('getUserMedia error: ' + err);
-        if (isliver) {
+        console.error('getUserMedia error: ' + err);
+        if (isprovider) {
             alert("亲,媒体流获取失败！请检查是否在https环境下或尝试更换chrome浏览器");
             window.location.reload(true);//刷新页面
-        } else {
-            var stream_null = $("<canvas></canvas>")[0].captureStream(25);
-            localStream = stream_null;
-            console.log("视频流已经被null填充");
-            requst_live_src(code);
         }
     });
 }
 
 //请求直播资源
-function requst_live_src(code) {
-    // if(code===1){//启动直播
-    //     startlive();
-    // }
-    if (isliver && !islived) {//主播
-        $("#live_video")[0].srcObject = localStream;//显示主播视频
-        startlive();
+async function requst_live_src() {
+    if (!islived) {
+        // alert("直播未开始、、、")
+    } else {
+        //创建rtc连接对象
+        createPeerConnection();
+        //向PeerConnection中加入需要发送的流
+        var stream_null = $("<canvas></canvas>")[0].captureStream(25);
+        localStream = stream_null;
+        console.log("视频流已经被null填充");
+
+        var videoSender = pc.addTrack(localStream.getVideoTracks()[0], localStream);
+
+
+        // var a = new MediaStream();
+        // a.kind = "audio";
+        // a.active = true;
+        // var audioSender = pc.addTrack(a.getAudioTracks()[0], a);
+
+        // videoSender.track.enable = false;
+        //TODO
+
+
+        //创建并发送请求信令
+        pc.createOffer(sendOfferFn, function (error) {
+            console.log('Failure callback: ' + error);
+        });
     }
-    else {
-
-        // $("#view_video")[0].src = localVideoUrl;//显示观众自己视频
-
-        if (islived) {
-            //创建rtc连接对象
-            createPeerConnection();
-            //向PeerConnection中加入需要发送的流
-            var stream_null = $("<canvas></canvas>")[0].captureStream(25);
-            localStream = stream_null;
-            console.log("视频流已经被null填充");
-            pc.addStream(localStream);
-            // pc.addTransceiver('audio');
-            // pc.addTransceiver('video');
-
-            //创建并发送请求信令
-            pc.createOffer(sendOfferFn, function (error) {
-                console.log('Failure callback: ' + error);
-            });
-        }
-        else {
-            alert("直播未开始、、、")
-        }
-    }
-
-
 }
 
 //启动直播
@@ -291,4 +271,5 @@ function remoteClose() {
     $("#live_video")[0].src = "";
     pc.close();
     pc_opened_array.splice($.inArray(pc, pc_opened_array), 1);
+    pc = null;
 }
