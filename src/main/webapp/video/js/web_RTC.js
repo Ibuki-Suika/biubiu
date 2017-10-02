@@ -50,7 +50,7 @@ function createPeerConnection() {//创建重置rtc连接
             pc.iceConnectionState === "disconnected" ||
             pc.iceConnectionState === "closed") {
             console.error(event)
-            alert("连接中断请刷新")
+            // alert("连接中断请刷新")
         }
     };
     //将rtc连接对象加入数组中
@@ -117,9 +117,16 @@ function processSignalingMessage(message) {
             pc.setRemoteDescription(new RTCSessionDescription(message.data.sdp));
         }
         session_id = message.session_id;
+        offerOptions = {
+            optional: [],
+            mandatory: {
+                OfferToReceiveAudio: false,
+                OfferToReceiveVideo: true
+            }
+        };
         pc.createAnswer(sendAnswerFn, function (error) {
             console.log('Failure callback: ' + error);
-        });
+        },offerOptions);
     }
     else if (message.type === "answer") {
         if (message.data.sdp != null) {
@@ -235,11 +242,17 @@ async function requst_live_src() {
         // videoSender.track.enable = false;
         //TODO
 
-
+        offerOptions = {
+            optional: [],
+            mandatory: {
+                OfferToReceiveAudio: true,
+                OfferToReceiveVideo: true
+            }
+        };
         //创建并发送请求信令
         pc.createOffer(sendOfferFn, function (error) {
             console.log('Failure callback: ' + error);
-        });
+        },offerOptions);
     }
 }
 
