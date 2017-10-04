@@ -66,7 +66,7 @@ var sendOfferFn = function (offer) {
             "group": "rtc",
             "type": "offer",
             "data": {
-                "sdp": offer
+                "desc": offer
             }
         }));
     }, error => {
@@ -80,7 +80,7 @@ var sendAnswerFn = function (answer) {
             "group": "rtc",
             "type": "answer",
             "data": {
-                "sdp": answer
+                "desc": answer
             },
             "session_id": session_id
         }));
@@ -103,8 +103,8 @@ function processSignalingMessage(message) {
         });
 
 
-        if (message.data.sdp != null) {
-            pc.setRemoteDescription(new RTCSessionDescription(message.data.sdp));
+        if (message.data.desc != null) {
+            pc.setRemoteDescription(new RTCSessionDescription(updateBandwidthRestriction(message.data.desc,'8000')));
         }
         session_id = message.session_id;
         // var offerOptions = {
@@ -119,8 +119,8 @@ function processSignalingMessage(message) {
         });
     }
     else if (message.type === "answer") {
-        if (message.data.sdp != null) {
-            pc.setRemoteDescription(new RTCSessionDescription(message.data.sdp));
+        if (message.data.desc != null) {
+            pc.setRemoteDescription(new RTCSessionDescription(updateBandwidthRestriction(message.data.desc,'8000')));
         }
     }
     else if (message.type === "ice_candidate" && islived) {
@@ -130,14 +130,11 @@ function processSignalingMessage(message) {
         }
     }
     else if (message.type === "bye" && islived) {
-        // alert("1")
-        // if (!isliver) {//不是主播还是不是isprovider？？？？？？
-        //     remoteClose();
-        // }
-        // else {
-        //     //........没想好
-        // }
-        remoteClose();
+        if (isliver()) {
+            window.location.reload(true);//刷新页面
+        }else {
+            remoteClose();
+        }
     }
 
 };
@@ -148,12 +145,18 @@ function getUserMedia() {
 
     var constraints = {
         audio: {
-                echoCancellation: true
+            echoCancellation: true
         },
         video: {
-                width: 1280,
-                height: 720,
-                frameRate: 60
+            minWidth: 1280,
+            minHeight: 720,
+            maxWidth: 1920,
+            maxHeight: 1080,
+            width: 1280,
+            height: 720,
+            frameRate: 60,
+            facingMode:'user'  //'environment'
+            // aspectRatio: 1.77777778
         }
     };
 
@@ -184,7 +187,7 @@ function requst_live_src() {
         //创建rtc连接对象
         createPeerConnection();
         //向PeerConnection中加入需要发送的流
-        var stream_null = $("<canvas></canvas>")[0].captureStream(60);
+        var stream_null = $("<canvas></canvas>")[0].captureStream();
         localStream = stream_null;
         console.log("视频流已经被null填充");
 
@@ -197,13 +200,13 @@ function requst_live_src() {
         });
 
         var offerOptions = {
-                OfferToReceiveAudio: 1,
-                OfferToReceiveVideo: 1
+            OfferToReceiveAudio: 1,
+            OfferToReceiveVideo: 1
         };
         //创建并发送请求信令
         pc.createOffer(sendOfferFn, (error) => {
                 console.log('Failure callback: ' + error);
-            },offerOptions
+            }, offerOptions
         );
     }
 }
@@ -211,20 +214,20 @@ function requst_live_src() {
 //启动直播
 function startlive() {
 
-    if (isliver && !islived) {
+    if (isliver() && !islived) {
         websocket.send(JSON.stringify({
             "group": "rtc",
             "type": "start_live",
             "data": {}
         }));
 
-        $("#open_btn").css({"background-color": "#4285F4"});
-        $("#open_btn").text("正在直播中");
-        $("#open_btn").attr("disabled", "disabled");
+        $("#open_btn").css({"background-color": "#ff9800","color":'antiquewhite'});
+        $("#open_btn").text("关闭直播");
+        // $("#open_btn").attr("disabled", "disabled");
         islived = true;//直播正在进行
 
     } else {
-        alert("不能开启直播 isliver:" + isliver + "---islived" + islived);
+        alert("不能开启直播,你不是房间的主人");
     }
 
 }
@@ -237,4 +240,22 @@ function remoteClose() {
     pc.close();
     pc_opened_array.splice($.inArray(pc, pc_opened_array), 1);
     pc = null;
+}
+
+
+function updateBandwidthRestriction(desc, bandwidth) {
+    var modifier = 'AS';
+    if (adapter.browserDetails.browser === 'firefox') {
+        bandwidth = (bandwidth >>> 0) * 1000;
+        modifier = 'TIAS';
+    }
+    if (desc.sdp.indexOf('b=' + modifier + ':') === -1) {
+        // insert b= after c= line.
+        desc.sdp = desc.sdp.replace(/c=IN (.*)\r\n/,
+            'c=IN $1\r\nb=' + modifier + ':' + bandwidth + '\r\n');
+    } else {
+        desc.sdp = desc.sdp.replace(new RegExp('b=' + modifier + ':.*\r\n'),
+            'b=' + modifier + ':' + bandwidth + '\r\n');
+    }
+    return desc;
 }
