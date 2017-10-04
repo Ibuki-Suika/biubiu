@@ -90,17 +90,6 @@ var sendAnswerFn = function (answer) {
 
 };
 
-// 等待远程视频
-// function waitForRemoteVideo() {
-//     if (pc.iceConnectionState == "connected") {// 判断rtc连接状态
-//         console.log("视频已经接通");
-//     } else {
-//         console.log("pc当前状态---" + pc.iceConnectionState);
-//         setTimeout(waitForRemoteVideo, 100);
-//     }
-//
-// }
-
 //处理到来的信令
 function processSignalingMessage(message) {
     console.log('onmessage:', message);
@@ -109,24 +98,25 @@ function processSignalingMessage(message) {
 
         //answer端收到offer信令后才会创建peerConnection
         createPeerConnection();
-        pc.addTrack(localStream.getVideoTracks()[0], localStream);
-        pc.addTrack(localStream.getAudioTracks()[0], localStream);
+        localStream.getTracks().forEach(function (track) {
+            pc.addTrack(track, localStream);
+        });
 
 
         if (message.data.sdp != null) {
             pc.setRemoteDescription(new RTCSessionDescription(message.data.sdp));
         }
         session_id = message.session_id;
-        offerOptions = {
-            optional: [],
-            mandatory: {
-                OfferToReceiveAudio: false,
-                OfferToReceiveVideo: true
-            }
-        };
+        // var offerOptions = {
+        //     optional: [],
+        //     mandatory: {
+        //         OfferToReceiveAudio: false,
+        //         OfferToReceiveVideo: false
+        //     }
+        // };
         pc.createAnswer(sendAnswerFn, function (error) {
             console.log('Failure callback: ' + error);
-        },offerOptions);
+        });
     }
     else if (message.type === "answer") {
         if (message.data.sdp != null) {
@@ -152,51 +142,18 @@ function processSignalingMessage(message) {
 
 };
 
-//获取视频流低版本兼容
-// var promisifiedOldGUM = function (constraints) {
-//
-//     // First get ahold of getUserMedia, if present
-//     var getUserMedia = (navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia)
-//
-//
-//     if (!getUserMedia) {
-//         return Promise.reject(new Error('getUserMedia is not implemented in this browser'));
-//     }
-//
-//     return new Promise(function (resolve, reject) {
-//         getUserMedia.call(navigator, constraints, resolve, reject);
-//     });
-// };
-//
-// if (navigator.mediaDevices === undefined) {
-//     navigator.mediaDevices = {};
-// }
-//
-// if (navigator.mediaDevices.getUserMedia === undefined) {
-//     navigator.mediaDevices.getUserMedia = promisifiedOldGUM;
-//     //alert("低版本兼容")
-// }
-
 // 获取用户的媒体(获取本地音频和视频流)
 function getUserMedia() {
     console.log("获取用户媒体");
 
     var constraints = {
         audio: {
-            mandatory: {
                 echoCancellation: true
-            }
         },
         video: {
-            mandatory: {
-                // width: {exact: 1280},
-                // height: {exact: 720},
-                // aspectRatio: 1.777777778,
-                // frameRate: {ideal: 15, max: 30}
-                maxFrameRate: 60,
-                minAspectRatio: 1.777777778,
-                maxAspectRatio: 1.777777778
-            }
+                width: 1280,
+                height: 720,
+                frameRate: 60
         }
     };
 
@@ -220,39 +177,34 @@ function getUserMedia() {
 }
 
 //请求直播资源
-async function requst_live_src() {
+function requst_live_src() {
     if (!islived) {
         // alert("直播未开始、、、")
     } else {
         //创建rtc连接对象
         createPeerConnection();
         //向PeerConnection中加入需要发送的流
-        var stream_null = $("<canvas></canvas>")[0].captureStream(25);
+        var stream_null = $("<canvas></canvas>")[0].captureStream(60);
         localStream = stream_null;
         console.log("视频流已经被null填充");
 
-        var videoSender = pc.addTrack(localStream.getVideoTracks()[0], localStream);
 
+        var ac = new (window.AudioContext || window.webkitAudioContext)(); // declare new audio context
+        var audioStream = ac.createMediaStreamDestination().stream;
+        localStream.addTrack(audioStream.getAudioTracks()[0]);
+        localStream.getTracks().forEach(function (track) {
+            pc.addTrack(track, localStream);
+        });
 
-        // var a = new MediaStream();
-        // a.kind = "audio";
-        // a.active = true;
-        // var audioSender = pc.addTrack(a.getAudioTracks()[0], a);
-
-        // videoSender.track.enable = false;
-        //TODO
-
-        offerOptions = {
-            optional: [],
-            mandatory: {
-                OfferToReceiveAudio: true,
-                OfferToReceiveVideo: true
-            }
+        var offerOptions = {
+                OfferToReceiveAudio: 1,
+                OfferToReceiveVideo: 1
         };
         //创建并发送请求信令
-        pc.createOffer(sendOfferFn, function (error) {
-            console.log('Failure callback: ' + error);
-        },offerOptions);
+        pc.createOffer(sendOfferFn, (error) => {
+                console.log('Failure callback: ' + error);
+            },offerOptions
+        );
     }
 }
 
