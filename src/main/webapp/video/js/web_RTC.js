@@ -104,7 +104,7 @@ function processSignalingMessage(message) {
 
 
         if (message.data.desc != null) {
-            pc.setRemoteDescription(new RTCSessionDescription(updateBandwidthRestriction(message.data.desc,'8000')));
+            pc.setRemoteDescription(new RTCSessionDescription(updateBandwidthRestriction(message.data.desc, '8000')));
         }
         session_id = message.session_id;
         // var offerOptions = {
@@ -120,7 +120,7 @@ function processSignalingMessage(message) {
     }
     else if (message.type === "answer") {
         if (message.data.desc != null) {
-            pc.setRemoteDescription(new RTCSessionDescription(updateBandwidthRestriction(message.data.desc,'8000')));
+            pc.setRemoteDescription(new RTCSessionDescription(updateBandwidthRestriction(message.data.desc, '8000')));
         }
     }
     else if (message.type === "ice_candidate" && islived) {
@@ -132,7 +132,7 @@ function processSignalingMessage(message) {
     else if (message.type === "bye" && islived) {
         if (isliver()) {
             window.location.reload(true);//刷新页面
-        }else {
+        } else {
             remoteClose();
         }
     }
@@ -155,7 +155,7 @@ function getUserMedia() {
             width: 1280,
             height: 720,
             frameRate: 60,
-            facingMode:'user'  //'environment'
+            facingMode: 'user'  //'environment'
             // aspectRatio: 1.77777778
         }
     };
@@ -187,26 +187,27 @@ function requst_live_src() {
         //创建rtc连接对象
         createPeerConnection();
         //向PeerConnection中加入需要发送的流
-        var stream_null = $("<canvas></canvas>")[0].captureStream();
-        localStream = stream_null;
-        console.log("视频流已经被null填充");
-
+        localStream = $("<canvas></canvas>")[0].captureStream();
 
         var ac = new (window.AudioContext || window.webkitAudioContext)(); // declare new audio context
         var audioStream = ac.createMediaStreamDestination().stream;
         localStream.addTrack(audioStream.getAudioTracks()[0]);
+        localStream.getVideoTracks()[0].muted=true;
+
+
+        console.log("视频流已经被null填充");
         localStream.getTracks().forEach(function (track) {
             pc.addTrack(track, localStream);
         });
 
-        var offerOptions = {
-            OfferToReceiveAudio: 1,
-            OfferToReceiveVideo: 1
-        };
+        // var offerOptions = {
+        //     OfferToReceiveAudio: 1,
+        //     OfferToReceiveVideo: 1
+        // };
         //创建并发送请求信令
         pc.createOffer(sendOfferFn, (error) => {
                 console.log('Failure callback: ' + error);
-            }, offerOptions
+            }
         );
     }
 }
@@ -221,7 +222,7 @@ function startlive() {
             "data": {}
         }));
 
-        $("#open_btn").css({"background-color": "#ff9800","color":'antiquewhite'});
+        $("#open_btn").css({"background-color": "#ff9800", "color": 'antiquewhite'});
         $("#open_btn").text("关闭直播");
         // $("#open_btn").attr("disabled", "disabled");
         islived = true;//直播正在进行
