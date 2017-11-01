@@ -50,7 +50,7 @@ function createPeerConnection() {//创建重置rtc连接
             pc.iceConnectionState === "disconnected" ||
             pc.iceConnectionState === "closed") {
             console.error(event)
-            alert("连接中断请刷新")
+            // alert("连接中断请刷新")
         }
     };
     //将rtc连接对象加入数组中
@@ -66,7 +66,7 @@ var sendOfferFn = function (offer) {
             "group": "rtc",
             "type": "offer",
             "data": {
-                "sdp": offer
+                "desc": offer
             }
         }));
     }, error => {
@@ -80,7 +80,7 @@ var sendAnswerFn = function (answer) {
             "group": "rtc",
             "type": "answer",
             "data": {
-                "sdp": answer
+                "desc": answer
             },
             "session_id": session_id
         }));
@@ -90,17 +90,6 @@ var sendAnswerFn = function (answer) {
 
 };
 
-// 等待远程视频
-// function waitForRemoteVideo() {
-//     if (pc.iceConnectionState == "connected") {// 判断rtc连接状态
-//         console.log("视频已经接通");
-//     } else {
-//         console.log("pc当前状态---" + pc.iceConnectionState);
-//         setTimeout(waitForRemoteVideo, 100);
-//     }
-//
-// }
-
 //处理到来的信令
 function processSignalingMessage(message) {
     console.log('onmessage:', message);
@@ -109,21 +98,29 @@ function processSignalingMessage(message) {
 
         //answer端收到offer信令后才会创建peerConnection
         createPeerConnection();
-        pc.addTrack(localStream.getVideoTracks()[0], localStream);
-        pc.addTrack(localStream.getAudioTracks()[0], localStream);
+        localStream.getTracks().forEach(function (track) {
+            pc.addTrack(track, localStream);
+        });
 
 
-        if (message.data.sdp != null) {
-            pc.setRemoteDescription(new RTCSessionDescription(message.data.sdp));
+        if (message.data.desc != null) {
+            pc.setRemoteDescription(new RTCSessionDescription(updateBandwidthRestriction(message.data.desc, '8000')));
         }
         session_id = message.session_id;
+        // var offerOptions = {
+        //     optional: [],
+        //     mandatory: {
+        //         OfferToReceiveAudio: false,
+        //         OfferToReceiveVideo: false
+        //     }
+        // };
         pc.createAnswer(sendAnswerFn, function (error) {
             console.log('Failure callback: ' + error);
         });
     }
     else if (message.type === "answer") {
-        if (message.data.sdp != null) {
-            pc.setRemoteDescription(new RTCSessionDescription(message.data.sdp));
+        if (message.data.desc != null) {
+            pc.setRemoteDescription(new RTCSessionDescription(updateBandwidthRestriction(message.data.desc, '8000')));
         }
     }
     else if (message.type === "ice_candidate" && islived) {
@@ -133,42 +130,14 @@ function processSignalingMessage(message) {
         }
     }
     else if (message.type === "bye" && islived) {
-        // alert("1")
-        // if (!isliver) {//不是主播还是不是isprovider？？？？？？
-        //     remoteClose();
-        // }
-        // else {
-        //     //........没想好
-        // }
-        remoteClose();
+        if (isliver()) {
+            window.location.reload(true);//刷新页面
+        } else {
+            remoteClose();
+        }
     }
 
 };
-
-//获取视频流低版本兼容
-// var promisifiedOldGUM = function (constraints) {
-//
-//     // First get ahold of getUserMedia, if present
-//     var getUserMedia = (navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia)
-//
-//
-//     if (!getUserMedia) {
-//         return Promise.reject(new Error('getUserMedia is not implemented in this browser'));
-//     }
-//
-//     return new Promise(function (resolve, reject) {
-//         getUserMedia.call(navigator, constraints, resolve, reject);
-//     });
-// };
-//
-// if (navigator.mediaDevices === undefined) {
-//     navigator.mediaDevices = {};
-// }
-//
-// if (navigator.mediaDevices.getUserMedia === undefined) {
-//     navigator.mediaDevices.getUserMedia = promisifiedOldGUM;
-//     //alert("低版本兼容")
-// }
 
 // 获取用户的媒体(获取本地音频和视频流)
 function getUserMedia() {
@@ -176,20 +145,18 @@ function getUserMedia() {
 
     var constraints = {
         audio: {
-            mandatory: {
-                echoCancellation: true
-            }
+            echoCancellation: true
         },
         video: {
-            mandatory: {
-                // width: {exact: 1280},
-                // height: {exact: 720},
-                // aspectRatio: 1.777777778,
-                // frameRate: {ideal: 15, max: 30}
-                maxFrameRate: 60,
-                minAspectRatio: 1.777777778,
-                maxAspectRatio: 1.777777778
-            }
+            minWidth: 1280,
+            minHeight: 720,
+            maxWidth: 1920,
+            maxHeight: 1080,
+            width: 1280,
+            height: 720,
+            frameRate: 60,
+            facingMode: 'user'  //'environment'
+            // aspectRatio: 1.77777778
         }
     };
 
@@ -213,53 +180,55 @@ function getUserMedia() {
 }
 
 //请求直播资源
-async function requst_live_src() {
+function requst_live_src() {
     if (!islived) {
         // alert("直播未开始、、、")
     } else {
         //创建rtc连接对象
         createPeerConnection();
         //向PeerConnection中加入需要发送的流
-        var stream_null = $("<canvas></canvas>")[0].captureStream(25);
-        localStream = stream_null;
+        localStream = $("<canvas></canvas>")[0].captureStream();
+
+        var ac = new (window.AudioContext || window.webkitAudioContext)(); // declare new audio context
+        var audioStream = ac.createMediaStreamDestination().stream;
+        localStream.addTrack(audioStream.getAudioTracks()[0]);
+        localStream.getVideoTracks()[0].muted=true;
+
+
         console.log("视频流已经被null填充");
-
-        var videoSender = pc.addTrack(localStream.getVideoTracks()[0], localStream);
-
-
-        // var a = new MediaStream();
-        // a.kind = "audio";
-        // a.active = true;
-        // var audioSender = pc.addTrack(a.getAudioTracks()[0], a);
-
-        // videoSender.track.enable = false;
-        //TODO
-
-
-        //创建并发送请求信令
-        pc.createOffer(sendOfferFn, function (error) {
-            console.log('Failure callback: ' + error);
+        localStream.getTracks().forEach(function (track) {
+            pc.addTrack(track, localStream);
         });
+
+        // var offerOptions = {
+        //     OfferToReceiveAudio: 1,
+        //     OfferToReceiveVideo: 1
+        // };
+        //创建并发送请求信令
+        pc.createOffer(sendOfferFn, (error) => {
+                console.log('Failure callback: ' + error);
+            }
+        );
     }
 }
 
 //启动直播
 function startlive() {
 
-    if (isliver && !islived) {
+    if (isliver() && !islived) {
         websocket.send(JSON.stringify({
             "group": "rtc",
             "type": "start_live",
             "data": {}
         }));
 
-        $("#open_btn").css({"background-color": "#4285F4"});
-        $("#open_btn").text("正在直播中");
-        $("#open_btn").attr("disabled", "disabled");
+        $("#open_btn").css({"background-color": "#ff9800", "color": 'antiquewhite'});
+        $("#open_btn").text("关闭直播");
+        // $("#open_btn").attr("disabled", "disabled");
         islived = true;//直播正在进行
 
     } else {
-        alert("不能开启直播 isliver:" + isliver + "---islived" + islived);
+        alert("不能开启直播,你不是房间的主人");
     }
 
 }
@@ -272,4 +241,22 @@ function remoteClose() {
     pc.close();
     pc_opened_array.splice($.inArray(pc, pc_opened_array), 1);
     pc = null;
+}
+
+
+function updateBandwidthRestriction(desc, bandwidth) {
+    var modifier = 'AS';
+    if (adapter.browserDetails.browser === 'firefox') {
+        bandwidth = (bandwidth >>> 0) * 1000;
+        modifier = 'TIAS';
+    }
+    if (desc.sdp.indexOf('b=' + modifier + ':') === -1) {
+        // insert b= after c= line.
+        desc.sdp = desc.sdp.replace(/c=IN (.*)\r\n/,
+            'c=IN $1\r\nb=' + modifier + ':' + bandwidth + '\r\n');
+    } else {
+        desc.sdp = desc.sdp.replace(new RegExp('b=' + modifier + ':.*\r\n'),
+            'b=' + modifier + ':' + bandwidth + '\r\n');
+    }
+    return desc;
 }

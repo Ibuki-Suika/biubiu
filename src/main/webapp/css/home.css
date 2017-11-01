@@ -14,7 +14,7 @@ body{
     /*background-color: aqua;*/
     text-align: center;
     /*margin:-42px auto 0;*/
-    background-image:url('../img/da32eabbc8e4b0bb288b92857440023b8df07931.jpg');
+    background-image:url('../img/head_img.jpg');
     /*background: transparent no-repeat center -10px;*/
 
 }
@@ -77,7 +77,7 @@ body{
     float: right;
     text-align: center;
     top: 10px;
-    /*margin-right: 80px;*/
+    margin-right: 4%;
 }
 .body_head .body_link_more a{
     /*display: block;*/
@@ -107,11 +107,12 @@ body{
     /*float: left;*/
 }
 .video_box_list{
-    width: 100%;
+    width: 1300px;
     height: auto;
     overflow: hidden;
     padding-top: 30px;
     padding-left: 10px;
+    margin: 0 auto;
 }
  .video_box_list li{
      position: relative;

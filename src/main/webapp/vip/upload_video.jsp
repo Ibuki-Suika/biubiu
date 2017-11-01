@@ -10,7 +10,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>投稿</title>
+    <title>投稿-biubiu</title>
     <%@include file="../inclued_page/base_js_css.jsp" %>
 
     <script src="js/fileinput.min.js" type="text/javascript"></script>
@@ -101,13 +101,13 @@
                             <div class="form-header clearfix">
                                 <div class="left tab-wrp">
                                     <div class="tab is-selected" data-header-base="">基本信息</div>
-                                    <div class="tab" data-header-high="">高级设置</div>
+                                    <%--<div class="tab" data-header-high="">高级设置</div>--%>
                                 </div>
-                                <div class="template-wrp">
-                                    <div class="template-hint">使用投稿模板</div>
+                                <%--<div class="template-wrp">--%>
+                                    <%--<div class="template-hint">使用投稿模板</div>--%>
                                     <div class="icon icon-setting manage-btn"></div>
                                     <div class="line"></div>
-                                </div>
+                                <%--</div>--%>
                             </div>
                         </div>
                         <div>
@@ -122,13 +122,13 @@
                                                class="is-checked">
                                         <div class="control-indicator"></div>
                                     </label></div>
-                                    <div class="control-group" style="margin-bottom: 15px; display: none;"><label
-                                            class="control control-checkbox"> <input type="checkbox">在视频播放页显示充电面板
-                                        <div class="control-indicator"></div>
-                                    </label></div>
-                                    <div class="elec-hint"><a href="//member.bilibili.com/v/#!/charge" class="link"
-                                                              target="_blank">参加充电计划</a>, 让我为您的创作充电
-                                    </div>
+                                    <%--<div class="control-group" style="margin-bottom: 15px; display: none;"><label--%>
+                                            <%--class="control control-checkbox"> <input type="checkbox">在视频播放页显示充电面板--%>
+                                        <%--<div class="control-indicator"></div>--%>
+                                    <%--</label></div>--%>
+                                    <%--<div class="elec-hint"><a href="//member.bilibili.com/v/#!/charge" class="link"--%>
+                                                              <%--target="_blank">参加充电计划</a>, 让我为您的创作充电--%>
+                                    <%--</div>--%>
                                 </div>
                             </div>
                             <div class="section type-wrp"><h3>选择分区</h3>
@@ -246,7 +246,7 @@
                 <div class="error"></div>
             </div>
         </div>
-        <div class="email-link">对新版投稿有任何建议请邮件反馈到uploader@bilibili.com</div>
+        <div class="email-link">对新版投稿有任何建议请邮件反馈到xxxxxxx.xxx</div>
     </div>
 
     <div id="submited" style="display: none;">
@@ -260,7 +260,8 @@
                 <%--<div class="hint">若你的稿件没有立刻显示在稿件列表中，请耐心等待5分钟</div>--%>
                 <div class="hint">下面是你是你的稿件访问地址:<br>
                     <span class="video_url_">www.agyufsdysfdyuk.dfghd</span></div>
-                <div class="pic"><img width="100%" src="../res/video_cover/default.png" ></div>
+                <div class="pic"><img width="100%"
+                                      src="https://biubiu-1251950860.cossh.myqcloud.com/video_cover/default.png"></div>
                 <a id="go_video" class="button" href="#">查看稿件</a>
                 <a id="again_video" class="button" href="#">再投一个</a>
             </div>

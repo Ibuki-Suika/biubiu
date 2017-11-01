@@ -6,8 +6,7 @@ import com.utils.CreateId;
 import com.utils.PropertiesUtil;
 
 import javax.websocket.Session;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 
@@ -17,6 +16,7 @@ public class LiveRoom {
     private static Map<Integer, LiveRoom> roomOpenMap = new ConcurrentHashMap<>();
 
     private String roomId;//直播间号
+    private String liverId;//主播id
     private String liverName;//主播名字
     private String liverAvatar;//主播头像
     private boolean is_lived = false;//正在直播？ 应该把它设计成线程安全的。
@@ -40,6 +40,14 @@ public class LiveRoom {
         this.roomId = roomId;
     }
 
+    public String getLiverId() {
+        return liverId;
+    }
+
+    public void setLiverId(String liverId) {
+        this.liverId = liverId;
+    }
+
     public String getLiverName() {
         return liverName;
     }
@@ -59,7 +67,8 @@ public class LiveRoom {
     public LiveRoom(Users liver) {
         this.roomId = CreateId.getNumZero(liver.getRoomId());
         this.liverName = liver.getUserName();
-        this.liverAvatar = PropertiesUtil.getProperty("cos.server.http.prefix") + liver.getUserPicPath();
+        this.liverId = liver.getUserId();
+        this.liverAvatar = liver.getUserPicPath();
     }
 
 
@@ -106,24 +115,22 @@ public class LiveRoom {
             return false;
         }//房间与主播不符
 
-        if (!isOpenRoom(roomId)) {
-            LiveRoom liveRoom = new LiveRoom(liver);
-            liveRoom.activateRoom();
-            LiveRoom.roomOpenMap.put(roomId, liveRoom);
-            liveRoom.setLiverSession(session);//设置将该连接设为主播
-            return true;
-        } else {
-            return false;
+        if (isOpenRoom(roomId)) {
+            LiveRoom room = getRoom(roomId);
+            room.closeRoom();//如果原来房间还活着则强制关闭
         }
+        LiveRoom liveRoom = new LiveRoom(liver);
+        liveRoom.activateRoom();
+        LiveRoom.roomOpenMap.put(roomId, liveRoom);
+        liveRoom.setLiverSession(session);//设置将该连接设为主播
+        return true;
     }
 
     //关闭直播(房间)
-    public synchronized LiveRoom closeRoom() {
-        this.is_lived = false;
+    public synchronized void closeRoom() {
         this.is_lived = false;//关闭直播(标志)
-        roomOpenMap.remove(this.roomId);
+        roomOpenMap.remove(Integer.valueOf(roomId));
         System.out.println(roomId + "房间关闭");
-        return this;
     }
 
     //获取直播状态
@@ -159,7 +166,7 @@ public class LiveRoom {
     public void outRoom(Session session, Users user_login) {
         if (user_login != null) {// 登录状态
             Set<Session> socketusergroup = this.getSocketsToUserMap().get(user_login.getUserId());
-            if(socketusergroup!=null)socketusergroup.remove(session);
+            if (socketusergroup != null) socketusergroup.remove(session);
             if (socketusergroup != null && socketusergroup.size() == 0) {// 关闭最后一个标签强制登出或刷新最后一个标签
                 this.getSocketsToUserMap().remove(user_login.getUserId());
                 id_map_name.remove(user_login.getUserId());//将该用户移除id_name 映射
@@ -203,5 +210,13 @@ public class LiveRoom {
 
     public Map<String, Set<Session>> getSocketsToUserMap() {
         return SocketsToUserMap;
+    }
+
+
+    public static synchronized List getRoomsList() {
+        List<LiveRoom> rooms=new ArrayList<>();
+        Collection<LiveRoom> values = LiveRoom.roomOpenMap.values();
+        rooms.addAll(values);
+        return rooms;
     }
 }

@@ -8,7 +8,7 @@ $(document).ready(function () {
     $("#upload_video").fileinput({
         language: 'zh', //设置语言
         uploadUrl: '../ajax/upload-video', // you must set a valid URL here else you will get an error
-        maxFileSize: 1000000,
+        maxFileSize: 2000000,
         maxFileCount: 1, //表示允许同时上传的最大文件个数
         dropZoneEnabled: true,//是否显示拖拽区域
         showUpload: true,
@@ -62,16 +62,18 @@ $(document).ready(function () {
                 alert("上传成功");
 
                 $(".cover-wrp .cover-box").css({
-                    "background-image":"url(" + server_path + obj.videoCoverPath + ")",
+                    "background-image": "url(" + obj.videoCoverURL + ")",
                     "border":"none"
                 });
 
-                $("#videopath").val(obj.videoPath);
-                $("#videocoverpath").val(obj.videoCoverPath);
+                $("#videopath").val(obj.videoURI);
+                $("#videocoverpath").val(obj.videoCoverURI);
                 is_uploaded = true;
 
             },100)
 
+        } else {
+            alert("上传失败");
         }
 
     });
@@ -117,12 +119,12 @@ $(document).ready(function () {
 
                             $(".success-wrp .outline").text(data.videoTitle);
                             $(".success-wrp .video_url_").text(full_path + "/video/demand?video_id=" + data.videoId);
-                            $(".success-wrp .pic img").attr("src", server_path + $("#videocoverpath").val());
+                            $(".success-wrp .pic img").attr("src", $("#videocoverpath").val());
 
                             $("#submited").show();
 
                             $("#go_video").attr("href", server_path + "/video/demand?video_id=" + data.videoId);
-                            $("#again_video").attr("href", server_path + "vip/upload_video.jsp");
+                            $("#again_video").attr("href", server_path + "vip/upload_video");
 
                         }
                         else {
